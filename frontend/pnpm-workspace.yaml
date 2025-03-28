@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "dev": "pnpm dev",
+    "build": "pnpm build",
+    "preview": "pnpm preview"
+  },
+  "packageManager": "pnpm@8.6.12"
+}
