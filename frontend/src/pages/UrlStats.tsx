@@ -6,6 +6,8 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell 
 } from 'recharts';
+import ReactCountryFlag from 'react-country-flag';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface UrlStats {
   url_id: number;
@@ -24,6 +26,8 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A259FF', '#FF5733'
 
 const UrlStats: FC = () => {
   const { shortCode } = useParams<{ shortCode: string }>();
+  const { theme } = useTheme();
+  const isDarkMode = theme === 'dark';
   
   const { data: stats, isLoading, isError } = useQuery<UrlStats>(
     ['urlStats', shortCode],
@@ -88,7 +92,7 @@ const UrlStats: FC = () => {
 
   // Custom renderer for pie chart labels to handle long names
   const renderCustomizedLabel = ({ 
-    cx, cy, midAngle, innerRadius, outerRadius, percent, index, name 
+    cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, fill 
   }: any) => {
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -98,14 +102,19 @@ const UrlStats: FC = () => {
     // Shorten browser name if too long
     const displayName = name.length > 15 ? `${name.substring(0, 15)}...` : name;
     
+    // Determine text color based on the background brightness
+    // For light mode, use dark text color (black)
+    const textColor = isDarkMode ? 'white' : 'black';
+    
     return (
       <text 
         x={x} 
         y={y} 
-        fill="white" 
+        fill={textColor} 
         textAnchor={x > cx ? 'start' : 'end'} 
         dominantBaseline="central"
         fontSize="12"
+        fontWeight="bold"
       >
         {`${displayName} (${(percent * 100).toFixed(0)}%)`}
       </text>
@@ -257,19 +266,60 @@ const UrlStats: FC = () => {
         <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Visitor Locations</h2>
           {locationChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={locationChartData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" name="Clicks" fill="#A259FF" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={locationChartData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="value" name="Clicks" fill="#A259FF" />
+                </BarChart>
+              </ResponsiveContainer>
+              
+              <div className="mt-6 overflow-x-auto">
+                <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                  <thead className="bg-gray-100 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Country</th>
+                      <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Clicks</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-gray-800 dark:text-gray-200">
+                    {locationChartData.map((location, index) => {
+                      // Extract country code (assuming it's a 2-letter ISO code)
+                      const countryCode = location.name.length === 2 ? 
+                        location.name.toUpperCase() : 
+                        location.name.split(',').pop()?.trim().toUpperCase();
+                      
+                      return (
+                        <tr key={index} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                          <td className="px-4 py-2 flex items-center gap-2">
+                            {countryCode && countryCode.length === 2 && (
+                              <ReactCountryFlag
+                                countryCode={countryCode}
+                                svg
+                                style={{
+                                  width: '1.5em',
+                                  height: '1.5em',
+                                }}
+                                title={location.name}
+                              />
+                            )}
+                            {location.name}
+                          </td>
+                          <td className="px-4 py-2">{location.value}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-12">No location data available yet</p>
           )}
