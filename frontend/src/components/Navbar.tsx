@@ -37,7 +37,7 @@ const Navbar: FC = () => {
               <Menu className="h-6 w-6 text-gray-700 dark:text-gray-300" />
             )}
           </button>
-          <Link to="/" className="flex items-center space-x-2">
+          <Link to={user ? "/dashboard" : "/"} className="flex items-center space-x-2">
             <motion.h1 
               className="bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-2xl font-bold text-transparent md:text-3xl"
               whileHover={{ scale: 1.05 }}

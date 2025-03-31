@@ -1,12 +1,16 @@
 import { FC } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FuturisticButton } from '../components/FuturisticButton';
 import { GlassMorphismCard } from '../components/GlassMorphismCard';
 import { BackgroundEffect } from '../components/BackgroundEffect';
 import { Link2, BarChart3, LayoutDashboard, Globe, Shield, Zap } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Home: FC = () => {
+  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -61,7 +65,7 @@ const Home: FC = () => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6, duration: 0.8 }}
           >
-            <Link to="/register">
+            <Link to={isAuthenticated ? "/dashboard" : "/register"}>
               <FuturisticButton variant="neon" size="lg">
                 Get Started
               </FuturisticButton>
