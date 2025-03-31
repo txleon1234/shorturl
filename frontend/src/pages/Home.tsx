@@ -1,15 +1,18 @@
 import { FC } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FuturisticButton } from '../components/FuturisticButton';
 import { GlassMorphismCard } from '../components/GlassMorphismCard';
 import { BackgroundEffect } from '../components/BackgroundEffect';
 import { Link2, BarChart3, LayoutDashboard, Globe, Shield, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 const Home: FC = () => {
-  const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const { theme } = useTheme();
+  const isAuthenticated = !!user;
+  const isDarkMode = theme === 'dark';
   
   const container = {
     hidden: { opacity: 0 },
@@ -31,7 +34,7 @@ const Home: FC = () => {
     <>
       <BackgroundEffect />
       
-      <div className="relative min-h-screen flex flex-col justify-center items-center text-gray-800 dark:text-white p-4 overflow-hidden">
+      <div className={`relative min-h-screen flex flex-col justify-center items-center p-4 overflow-hidden ${isDarkMode ? 'bg-gray-900 text-white' : ''}`}>
         <motion.div 
           className="max-w-4xl mx-auto text-center z-10"
           initial={{ opacity: 0, y: -20 }}
@@ -50,7 +53,7 @@ const Home: FC = () => {
           </motion.h1>
           
           <motion.p 
-            className="text-xl md:text-2xl mb-12 max-w-2xl mx-auto"
+            className={`text-xl md:text-2xl mb-12 max-w-2xl mx-auto ${isDarkMode ? 'text-gray-300' : ''}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4, duration: 0.8 }}
@@ -144,7 +147,7 @@ const Home: FC = () => {
         </motion.div>
         
         <motion.footer 
-          className="mt-24 text-center text-sm opacity-75 z-10"
+          className={`mt-24 text-center text-sm ${isDarkMode ? 'opacity-50' : 'opacity-75'} z-10`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2, duration: 0.8 }}
@@ -172,7 +175,7 @@ const FeatureCard: FC<FeatureCardProps> = ({ icon, title, description, variants,
           {icon}
         </div>
         <h3 className="text-xl font-bold mb-2">{title}</h3>
-        <p className="text-gray-700 dark:text-gray-300">{description}</p>
+        <p>{description}</p>
       </GlassMorphismCard>
     </motion.div>
   );

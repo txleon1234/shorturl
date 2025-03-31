@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface GlassMorphismCardProps {
@@ -15,15 +15,35 @@ export function GlassMorphismCard({
   glowColor = 'rgba(255, 255, 255, 0.1)'
 }: GlassMorphismCardProps) {
   const [isHovered, setIsHovered] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   
-  // 检测是否是暗色模式
-  const isDark = document.documentElement.classList.contains('dark');
+  // 使用useEffect来检测暗色模式，并监听主题变化
+  useEffect(() => {
+    // 初始检测
+    const checkDarkMode = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+    
+    // 初始运行
+    checkDarkMode();
+    
+    // 创建一个观察器来监听document.documentElement的class变化
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+    
+    // 清理观察器
+    return () => observer.disconnect();
+  }, []);
+
   const bgColor = isDark ? 'rgba(31, 41, 55, 0.5)' : 'rgba(255, 255, 255, 0.1)';
   const borderColor = isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(255, 255, 255, 0.18)';
 
   return (
     <motion.div
-      className={`relative overflow-hidden rounded-xl backdrop-blur-md dark:text-white ${className}`}
+      className={`relative overflow-hidden rounded-xl backdrop-blur-md ${isDark ? 'text-white' : 'text-gray-800'} ${className}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}

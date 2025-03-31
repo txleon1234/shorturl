@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface BackgroundEffectProps {
   className?: string;
@@ -11,6 +11,25 @@ export function BackgroundEffect({ className = '' }: BackgroundEffectProps) {
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const particlesRef = useRef<THREE.Points | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    // 检查初始主题
+    const checkDarkMode = () => {
+      setIsDarkMode(document.documentElement.classList.contains('dark'));
+    };
+    
+    checkDarkMode();
+    
+    // 监听主题变化
+    const observer = new MutationObserver(checkDarkMode);
+    observer.observe(document.documentElement, { 
+      attributes: true, 
+      attributeFilter: ['class'] 
+    });
+    
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -43,11 +62,12 @@ export function BackgroundEffect({ className = '' }: BackgroundEffectProps) {
     
     particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
     
+    // 根据暗色模式设置粒子颜色和不透明度
     const particlesMaterial = new THREE.PointsMaterial({
       size: 0.02,
-      color: 0xffffff,
+      color: isDarkMode ? 0x3399ff : 0x000066, // 暗色模式下更亮，亮色模式下更暗
       transparent: true,
-      opacity: 0.8,
+      opacity: isDarkMode ? 0.8 : 0.5, // 暗色模式下更不透明
       blending: THREE.AdditiveBlending
     });
     
@@ -88,7 +108,7 @@ export function BackgroundEffect({ className = '' }: BackgroundEffectProps) {
       
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [isDarkMode]); // 添加isDarkMode依赖，当主题变化时重新创建场景
   
   return (
     <div 
