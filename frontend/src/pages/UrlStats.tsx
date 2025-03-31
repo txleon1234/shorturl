@@ -114,7 +114,6 @@ const UrlStats: FC = () => {
         textAnchor={x > cx ? 'start' : 'end'} 
         dominantBaseline="central"
         fontSize="12"
-        fontWeight="bold"
       >
         {`${displayName} (${(percent * 100).toFixed(0)}%)`}
       </text>
