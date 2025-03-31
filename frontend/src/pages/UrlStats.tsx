@@ -13,13 +13,14 @@ interface UrlStats {
   original_url: string;
   total_clicks: number;
   referrers: Record<string, number>;
-  user_agents: Record<string, number>;
+  browsers: Record<string, number>;
   operating_systems: Record<string, number>;
   locations: Record<string, number>;
   clicks_over_time: Record<string, number>;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A259FF', '#FF5733', '#4BC0C0'];
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A259FF', '#FF5733', '#4BC0C0', 
+                '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B', '#6A7FDB', '#9CCC65', '#BA68C8'];
 
 const UrlStats: FC = () => {
   const { shortCode } = useParams<{ shortCode: string }>();
@@ -64,20 +65,52 @@ const UrlStats: FC = () => {
     value: count,
   }));
 
-  const userAgentChartData = Object.entries(stats.user_agents).map(([agent, count]) => ({
-    name: agent,
-    value: count,
-  }));
+  const browserChartData = Object.entries(stats.browsers)
+    .sort((a, b) => b[1] - a[1]) // Sort by count in descending order
+    .map(([agent, count]) => ({
+      name: agent,
+      value: count,
+    }));
   
-  const osChartData = Object.entries(stats.operating_systems).map(([os, count]) => ({
-    name: os,
-    value: count,
-  }));
+  const osChartData = Object.entries(stats.operating_systems)
+    .sort((a, b) => b[1] - a[1]) // Sort by count in descending order
+    .map(([os, count]) => ({
+      name: os,
+      value: count,
+    }));
   
-  const locationChartData = Object.entries(stats.locations).map(([location, count]) => ({
-    name: location,
-    value: count,
-  }));
+  const locationChartData = Object.entries(stats.locations)
+    .sort((a, b) => b[1] - a[1]) // Sort by count in descending order
+    .map(([location, count]) => ({
+      name: location,
+      value: count,
+    }));
+
+  // Custom renderer for pie chart labels to handle long names
+  const renderCustomizedLabel = ({ 
+    cx, cy, midAngle, innerRadius, outerRadius, percent, index, name 
+  }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+    
+    // Shorten browser name if too long
+    const displayName = name.length > 15 ? `${name.substring(0, 15)}...` : name;
+    
+    return (
+      <text 
+        x={x} 
+        y={y} 
+        fill="white" 
+        textAnchor={x > cx ? 'start' : 'end'} 
+        dominantBaseline="central"
+        fontSize="12"
+      >
+        {`${displayName} (${(percent * 100).toFixed(0)}%)`}
+      </text>
+    );
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -163,22 +196,22 @@ const UrlStats: FC = () => {
       </div>
 
       <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">User Agents</h2>
-        {userAgentChartData.length > 0 ? (
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Browsers</h2>
+        {browserChartData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
-                data={userAgentChartData}
+                data={browserChartData}
                 cx="50%"
                 cy="50%"
-                labelLine={true}
+                labelLine={false}
                 outerRadius={100}
                 fill="#8884d8"
                 dataKey="value"
                 nameKey="name"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={renderCustomizedLabel}
               >
-                {userAgentChartData.map((_, index) => (
+                {browserChartData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
@@ -187,7 +220,7 @@ const UrlStats: FC = () => {
             </PieChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-gray-500 dark:text-gray-400 text-center py-12">No user agent data available yet</p>
+          <p className="text-gray-500 dark:text-gray-400 text-center py-12">No browser data available yet</p>
         )}
       </div>
 
@@ -201,12 +234,12 @@ const UrlStats: FC = () => {
                   data={osChartData}
                   cx="50%"
                   cy="50%"
-                  labelLine={true}
+                  labelLine={false}
                   outerRadius={100}
                   fill="#8884d8"
                   dataKey="value"
                   nameKey="name"
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  label={renderCustomizedLabel}
                 >
                   {osChartData.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

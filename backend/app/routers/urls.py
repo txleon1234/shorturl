@@ -10,6 +10,7 @@ import random
 import string
 from datetime import datetime, timedelta
 from collections import Counter, defaultdict
+from user_agents import parse as parse_ua
 
 router = APIRouter(
     prefix="/api/urls",
@@ -89,8 +90,48 @@ def get_url_stats(short_code: str, db: Session = Depends(get_db), current_user: 
     # Analyze referrers
     referrers = Counter([click.referrer or "Direct/Unknown" for click in clicks])
     
-    # Analyze user agents (simplified)
-    user_agents = Counter([click.user_agent.split('/')[0] if click.user_agent else "Unknown" for click in clicks])
+    # Analyze browsers from user agents using user-agents library
+    browser_names = []
+    for click in clicks:
+        if not click.user_agent:
+            browser_names.append("Unknown")
+            continue
+        
+        try:
+            user_agent = parse_ua(click.user_agent)
+            browser_family = user_agent.browser.family
+            
+            # Clean up browser family names for better readability
+            if browser_family == "Chrome Mobile":
+                browser_family = "Chrome (Mobile)"
+            elif browser_family == "Firefox Mobile":
+                browser_family = "Firefox (Mobile)"
+            elif browser_family == "Mobile Safari":
+                browser_family = "Safari (Mobile)"
+            
+            browser_names.append(browser_family)
+        except Exception:
+            # Fallback to basic detection if the library fails
+            ua_lower = click.user_agent.lower()
+            
+            if "chrome" in ua_lower and "chromium" not in ua_lower and "edg" not in ua_lower and "opera" not in ua_lower and "opr" not in ua_lower:
+                browser_names.append("Chrome")
+            elif "firefox" in ua_lower:
+                browser_names.append("Firefox")
+            elif "safari" in ua_lower and "chrome" not in ua_lower:
+                browser_names.append("Safari")
+            elif "edg" in ua_lower:
+                browser_names.append("Edge")
+            elif "opera" in ua_lower or "opr" in ua_lower:
+                browser_names.append("Opera")
+            elif "msie" in ua_lower or "trident" in ua_lower:
+                browser_names.append("Internet Explorer")
+            elif "chromium" in ua_lower:
+                browser_names.append("Chromium")
+            else:
+                browser_names.append("Other")
+            
+    browsers = Counter(browser_names)
     
     # Analyze operating systems
     operating_systems = Counter([click.operating_system or "Unknown" for click in clicks])
@@ -113,7 +154,7 @@ def get_url_stats(short_code: str, db: Session = Depends(get_db), current_user: 
         "original_url": db_url.original_url,
         "total_clicks": total_clicks,
         "referrers": dict(referrers),
-        "user_agents": dict(user_agents),
+        "browsers": dict(browsers),
         "operating_systems": dict(operating_systems),
         "locations": dict(locations),
         "clicks_over_time": clicks_over_time

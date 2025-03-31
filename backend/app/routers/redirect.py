@@ -33,14 +33,34 @@ def redirect_to_url(
     if db_url is None:
         raise HTTPException(status_code=404, detail="URL not found")
     
-    # Parse user agent to get operating system
+    # Parse user agent to get operating system and browser
     operating_system = "Unknown"
+    browser = "Unknown"
     if user_agent:
         try:
             parsed_ua = ua_parse(user_agent)
             operating_system = parsed_ua.os.family
-        except:
-            pass
+            
+            # Get browser family with version for more accurate stats
+            browser_family = parsed_ua.browser.family
+            browser_version = parsed_ua.browser.version_string
+            
+            # Clean up browser family names
+            if browser_family == "Chrome Mobile":
+                browser_family = "Chrome (Mobile)"
+            elif browser_family == "Firefox Mobile":
+                browser_family = "Firefox (Mobile)"
+            elif browser_family == "Mobile Safari":
+                browser_family = "Safari (Mobile)"
+            
+            # Include version for more detailed analytics if available
+            if browser_version:
+                browser = f"{browser_family} {browser_version}"
+            else:
+                browser = browser_family
+                
+        except Exception as e:
+            print(f"Error parsing user agent: {e}")
     
     # Get location from IP address
     location = "Unknown"
@@ -54,8 +74,8 @@ def redirect_to_url(
                     location = f"{response.city.name}, {response.country.name}"
                 elif response.country.name:
                     location = response.country.name
-        except:
-            pass
+        except Exception as e:
+            print(f"Error getting location: {e}")
     
     # Record the click
     click = Click(

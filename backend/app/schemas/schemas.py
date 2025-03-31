@@ -74,7 +74,7 @@ class URLStats(BaseModel):
     original_url: str
     total_clicks: int
     referrers: dict
-    user_agents: dict
+    browsers: dict
     clicks_over_time: dict
     operating_systems: dict
     locations: dict
