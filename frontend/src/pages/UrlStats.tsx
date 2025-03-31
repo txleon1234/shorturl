@@ -7,6 +7,7 @@ import {
   BarChart, Bar, PieChart, Pie, Cell 
 } from 'recharts';
 import ReactCountryFlag from 'react-country-flag';
+import lookup from 'country-code-lookup';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface UrlStats {
@@ -92,7 +93,7 @@ const UrlStats: FC = () => {
 
   // Custom renderer for pie chart labels to handle long names
   const renderCustomizedLabel = ({ 
-    cx, cy, midAngle, innerRadius, outerRadius, percent, index, name, fill 
+    cx, cy, midAngle, innerRadius, outerRadius, percent, name 
   }: any) => {
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
@@ -291,9 +292,11 @@ const UrlStats: FC = () => {
                   <tbody className="text-gray-800 dark:text-gray-200">
                     {locationChartData.map((location, index) => {
                       // Extract country code (assuming it's a 2-letter ISO code)
-                      const countryCode = location.name.length === 2 ? 
+                      const countryName = location.name.length === 2 ? 
                         location.name.toUpperCase() : 
                         location.name.split(',').pop()?.trim().toUpperCase();
+
+                      const countryCode = lookup.byCountry(countryName || "")?.iso2;
                       
                       return (
                         <tr key={index} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
