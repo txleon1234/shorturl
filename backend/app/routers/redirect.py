@@ -74,6 +74,7 @@ def redirect_to_url(
         referrer=referer,
         user_agent=user_agent,
         ip_address=client_host,
+        client_host=client_host,  # 存储客户端主机信息
         operating_system=operating_system,
         location=location
     )

@@ -36,6 +36,7 @@ class Click(Base):
     referrer = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
+    client_host = Column(String, nullable=True)  # 添加新字段存储客户端主机信息
     operating_system = Column(String, nullable=True)
     location = Column(String, nullable=True)
     
