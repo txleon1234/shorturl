@@ -39,6 +39,8 @@ class Click(Base):
     client_host = Column(String, nullable=True)  # 添加新字段存储客户端主机信息
     operating_system = Column(String, nullable=True)
     location = Column(String, nullable=True)
+    country = Column(String, nullable=True)  # 添加国家字段
+    city = Column(String, nullable=True)  # 添加城市字段
     
     url = relationship("URL", back_populates="clicks")
 

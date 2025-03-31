@@ -44,6 +44,8 @@ def redirect_to_url(
     
     # Get location from IP address
     location = "Unknown"
+    country = None
+    city = None
     
     # Get the real client IP address, accounting for reverse proxies
     client_host = None
@@ -57,14 +59,16 @@ def redirect_to_url(
     
     if client_host and geoip_reader:
         try:
-            # Remove debugger statement
             # Skip localhost or private IPs
             if not (client_host == "127.0.0.1" or client_host.startswith("192.168.") or client_host.startswith("10.") or client_host.startswith("172.16.")):
                 response = geoip_reader.city(client_host)
                 if response.city.name and response.country.name:
                     location = f"{response.city.name}, {response.country.name}"
+                    city = response.city.name
+                    country = response.country.name
                 elif response.country.name:
                     location = response.country.name
+                    country = response.country.name
         except Exception as e:
             print(f"Error getting location: {e}")
     
@@ -76,7 +80,9 @@ def redirect_to_url(
         ip_address=client_host,
         client_host=client_host,  # 存储客户端主机信息
         operating_system=operating_system,
-        location=location
+        location=location,
+        country=country,
+        city=city
     )
     db.add(click)
     db.commit()
