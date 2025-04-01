@@ -1,5 +1,5 @@
 import { FC, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './contexts/AuthContext';
@@ -21,7 +21,6 @@ import AdminRoute from './components/AdminRoute';
 const queryClient = new QueryClient();
 
 const App: FC = () => {
-  // 由于我们现在使用ThemeContext，可以移除这个初始化主题的代码
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -43,8 +42,8 @@ const App: FC = () => {
 
                 {/* Protected routes */}
                 <Route element={<ProtectedLayout />}>
-                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/stats/:shortCode" element={<UrlStats />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
                   
                   {/* Admin routes */}
                   <Route path="/settings" element={

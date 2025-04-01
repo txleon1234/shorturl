@@ -1,7 +1,7 @@
-import { FC, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { FC, useState, useEffect } from 'react';
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from 'react-query';
-import { getUrlStats } from '../api';
+import { getUrlStats, createShareLink } from '../api';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Cell 
@@ -9,7 +9,7 @@ import {
 import ReactCountryFlag from 'react-country-flag';
 import lookup from 'country-code-lookup';
 import { useTheme } from '../contexts/ThemeContext';
-import { 
+import {  // @ts-ignore
   ComposableMap, Geographies, Geography, ZoomableGroup, Marker
 } from 'react-simple-maps';
 // Add type declarations for react-simple-maps
@@ -17,7 +17,9 @@ declare module 'react-simple-maps';
 import { scaleLinear } from 'd3-scale';
 // Add type declarations for d3-scale
 declare module 'd3-scale';
+// @ts-ignore
 import Papa from 'papaparse';
+import * as utils from '../utils';
 
 interface UrlStats {
   url_id: number;
@@ -92,19 +94,23 @@ async function fetchCitiesData(): Promise<City[]> {
 
 const UrlStats: FC = () => {
   const { shortCode } = useParams<{ shortCode: string }>();
+  const [searchParams] = useSearchParams();
+  const shareToken = searchParams.get('share_token');
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
   
   // Define useState hooks before conditional returns
   const [currentReferrerPage, setCurrentReferrerPage] = useState(1);
   const [currentLocationPage, setCurrentLocationPage] = useState(1);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [copySuccess, setCopySuccess] = useState('');
   
   const { data: stats, isLoading, isError } = useQuery<UrlStats>(
-    ['urlStats', shortCode],
-    () => getUrlStats(shortCode as string),
+    ['urlStats', shortCode, shareToken],
+    () => getUrlStats(shortCode as string, shareToken || undefined),
     {
       enabled: !!shortCode,
-      refetchInterval: 30000, // Refresh data every 30 seconds
+      refetchInterval: shareToken ? false : 30000, // Only refresh when not using share token
     }
   );
 
@@ -206,11 +212,13 @@ const UrlStats: FC = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="mb-6">
-        <Link to="/dashboard" className="text-indigo-600 hover:text-indigo-900">
-          &larr; Back to Dashboard
-        </Link>
-      </div>
+      {!shareToken && (
+        <div className="mb-6">
+          <Link to="/dashboard" className="text-indigo-600 hover:text-indigo-900">
+            &larr; Back to Dashboard
+          </Link>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6 mb-8">
         <h1 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">URL Statistics</h1>
@@ -240,8 +248,77 @@ const UrlStats: FC = () => {
           <p className="text-gray-700 dark:text-gray-300">
             <span className="font-semibold">Total Clicks:</span> {stats.total_clicks}
           </p>
+          
+          {!shareToken && (
+            <div className="mt-4">
+              <button 
+                onClick={() => setShareModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-700 active:bg-indigo-800 focus:outline-none focus:border-indigo-900 focus:shadow-outline-indigo transition ease-in-out duration-150"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share Statistics
+              </button>
+            </div>
+          )}
         </div>
       </div>
+      
+      {/* Share Modal */}
+      {shareModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Share Statistics</h2>
+            <p className="text-gray-700 dark:text-gray-300 mb-4">
+              Create a shareable link to let others view these statistics without requiring login.
+            </p>
+            
+            <div className="flex flex-col gap-4">
+              <button 
+                onClick={async () => {
+                  try {
+                    const { share_token } = await createShareLink(shortCode as string);
+                    const shareUrl = `${window.location.origin}/stats/${shortCode}?share_token=${share_token}`;
+                    
+                    utils.copyToClipboard(shareUrl);
+                    setCopySuccess('Link copied to clipboard!');
+                    setTimeout(() => setCopySuccess(''), 3000);
+                  } catch (error) {
+                    console.error('Error creating share link:', error);
+                    setCopySuccess('Error creating share link');
+                    // 显示错误详情以便调试
+                    if (error.response) {
+                      console.error('Error response:', error.response.data);
+                      setCopySuccess(`Error: ${error.response.status} - ${error.response.data.detail || 'Unknown error'}`);
+                    } else if (error.request) {
+                      console.error('Error request:', error.request);
+                      setCopySuccess('Error: No response received from server');
+                    } else {
+                      console.error('Error message:', error.message);
+                      setCopySuccess(`Error: ${error.message}`);
+                    }
+                  }
+                }}
+                className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700"
+              >
+                Generate Shareable Link
+              </button>
+              
+              {copySuccess && (
+                <div className="text-green-500 text-center">{copySuccess}</div>
+              )}
+              
+              <button 
+                onClick={() => setShareModalOpen(false)} 
+                className="mt-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
         <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">

@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
-from typing import List, Optional
+from typing import List, Optional, Union
 from .. import auth
 from ..database import get_db
 from ..models.models import URL, Click, User
@@ -25,6 +25,7 @@ def generate_short_code(length=6):
 
 @router.post("/", response_model=URLSchema)
 def create_url(url: URLCreate, db: Session = Depends(get_db), current_user: User = Depends(auth.get_current_user)):
+    """Create a new shortened URL"""
     # Generate a unique short code
     while True:
         short_code = generate_short_code()
@@ -41,6 +42,20 @@ def create_url(url: URLCreate, db: Session = Depends(get_db), current_user: User
     setattr(db_url, 'click_count', 0)
     
     return db_url
+
+@router.post("/{short_code}/share", response_model=dict)
+def create_share_link(short_code: str, db: Session = Depends(get_db), current_user: User = Depends(auth.get_current_user)):
+    """Create or refresh a share token for a URL"""
+    db_url = db.query(URL).filter(URL.short_code == short_code, URL.user_id == current_user.id).first()
+    if db_url is None:
+        raise HTTPException(status_code=404, detail="URL not found")
+    
+    # Generate new share token
+    share_token = db_url.generate_share_token()
+    db_url.share_token = share_token
+    db.commit()
+    
+    return {"share_token": share_token}
 
 @router.get("/", response_model=List[URLSchema])
 def read_urls(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), current_user: User = Depends(auth.get_current_user)):
@@ -76,10 +91,25 @@ def delete_url(short_code: str, db: Session = Depends(get_db), current_user: Use
     return Response(status_code=204)
 
 @router.get("/{short_code}/stats", response_model=URLStats)
-def get_url_stats(short_code: str, db: Session = Depends(get_db), current_user: User = Depends(auth.get_current_user)):
-    db_url = db.query(URL).filter(URL.short_code == short_code, URL.user_id == current_user.id).first()
-    if db_url is None:
-        raise HTTPException(status_code=404, detail="URL not found")
+def get_url_stats(
+    short_code: str, 
+    share_token: Optional[str] = None,
+    db: Session = Depends(get_db), 
+    current_user: Optional[User] = Depends(auth.get_current_user_optional)
+):
+    # Check if accessing with share token
+    if share_token:
+        db_url = db.query(URL).filter(URL.short_code == short_code, URL.share_token == share_token).first()
+        if not db_url:
+            raise HTTPException(status_code=404, detail="URL not found or invalid share token")
+    else:
+        # Regular access requires authentication and ownership
+        if not current_user:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        db_url = db.query(URL).filter(URL.short_code == short_code, URL.user_id == current_user.id).first()
+        if not db_url:
+            raise HTTPException(status_code=404, detail="URL not found")
     
     # Get all clicks for this URL
     clicks = db.query(Click).filter(Click.url_id == db_url.id).all()

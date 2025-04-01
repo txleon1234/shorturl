@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { getUrls, createUrl, deleteUrl } from '../api';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import * as utils from '../utils';
 
 interface URL {
   id: number;
@@ -66,7 +67,7 @@ const Dashboard: FC = () => {
 
   // Copy to clipboard function
   const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+    utils.copyToClipboard(text);
     alert('Copied to clipboard!');
   };
 

@@ -26,10 +26,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Only redirect to login for 401 errors if not accessing a shared resource
     if (error.response && error.response.status === 401) {
-      // Clear local storage and redirect to login
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Check if the request URL contains share_token parameter
+      const url = error.config.url;
+      if (url && !url.includes('share_token')) {
+        // Clear local storage and redirect to login
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -80,13 +85,19 @@ export const getUrlDetails = async (shortCode: string) => {
   return response.data;
 };
 
-export const getUrlStats = async (shortCode: string) => {
-  const response = await api.get(`/urls/${shortCode}/stats`);
+export const getUrlStats = async (shortCode: string, shareToken?: string) => {
+  const url = `/urls/${shortCode}/stats${shareToken ? `?share_token=${shareToken}` : ''}`;
+  const response = await api.get(url);
   return response.data;
 };
 
 export const deleteUrl = async (shortCode: string) => {
   const response = await api.delete(`/urls/${shortCode}`);
+  return response.data;
+};
+
+export const createShareLink = async (shortCode: string) => {
+  const response = await api.post(`/urls/${shortCode}/share`);
   return response.data;
 };
 

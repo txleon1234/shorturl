@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
+import secrets
 from app.database import Base
 
 class URL(Base):
@@ -11,9 +12,14 @@ class URL(Base):
     short_code = Column(String, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     user_id = Column(Integer, ForeignKey("users.id"))
+    share_token = Column(String(64), unique=True, index=True, nullable=True)
     
     user = relationship("User", back_populates="urls")
     clicks = relationship("Click", back_populates="url", cascade="all, delete-orphan")
+    
+    def generate_share_token(self):
+        """Generate a unique share token for URL stats sharing"""
+        return secrets.token_urlsafe(32)
 
 class User(Base):
     __tablename__ = "users"

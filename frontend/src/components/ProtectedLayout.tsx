@@ -1,9 +1,12 @@
 import { FC } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import Navbar from './Navbar';
 
 const ProtectedLayout: FC = () => {
+  const [searchParams] = useSearchParams();
+  const shareToken = searchParams.get('share_token');
+
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
   
@@ -11,7 +14,7 @@ const ProtectedLayout: FC = () => {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
   
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !shareToken) {
     // Redirect to login page, but save the current location they were trying to access
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
