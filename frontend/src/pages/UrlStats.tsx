@@ -356,7 +356,11 @@ const UrlStats: FC = () => {
                   <YAxis />
                   <Tooltip />
                   <Legend />
-                  <Bar dataKey="value" name="Clicks" fill="#8884d8" />
+                  <Bar dataKey="value" name="Clicks">
+                    {referrerChartData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
 
