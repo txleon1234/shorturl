@@ -284,7 +284,7 @@ const UrlStats: FC = () => {
                     utils.copyToClipboard(shareUrl);
                     setCopySuccess('Link copied to clipboard!');
                     setTimeout(() => setCopySuccess(''), 3000);
-                  } catch (error) {
+                  } catch (error: any) {
                     console.error('Error creating share link:', error);
                     setCopySuccess('Error creating share link');
                     // 显示错误详情以便调试
