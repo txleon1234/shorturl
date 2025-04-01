@@ -1,4 +1,4 @@
-import { FC } from 'react';
+import { FC, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from 'react-query';
 import { getUrlStats } from '../api';
@@ -9,6 +9,15 @@ import {
 import ReactCountryFlag from 'react-country-flag';
 import lookup from 'country-code-lookup';
 import { useTheme } from '../contexts/ThemeContext';
+import { 
+  ComposableMap, Geographies, Geography, ZoomableGroup, Marker
+} from 'react-simple-maps';
+// Add type declarations for react-simple-maps
+declare module 'react-simple-maps';
+import { scaleLinear } from 'd3-scale';
+// Add type declarations for d3-scale
+declare module 'd3-scale';
+import Papa from 'papaparse';
 
 interface UrlStats {
   url_id: number;
@@ -18,17 +27,77 @@ interface UrlStats {
   referrers: Record<string, number>;
   browsers: Record<string, number>;
   operating_systems: Record<string, number>;
-  locations: Record<string, number>;
+  locations: Record<string, number>; // Format: "City, Country" or just "Country"
   clicks_over_time: Record<string, number>;
+}
+
+// Helper function to extract city and country from location string
+function parseLocation(location: string): { city: string | null; country: string | null } {
+  const parts = location.split(',').map(part => part.trim());
+  
+  if (parts.length >= 2) {
+    // If we have at least city,country format
+    return {
+      city: parts[0],
+      country: parts[parts.length - 1]
+    };
+  } else if (parts.length === 1) {
+    // If we only have one part (likely country)
+    return {
+      city: null,
+      country: parts[0]
+    };
+  }
+  
+  return { city: null, country: null };
+}
+
+function getLocationCountryName(location: string) {
+  return parseLocation(location).country;
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A259FF', '#FF5733', '#4BC0C0', 
                 '#8884D8', '#82CA9D', '#FFC658', '#FF6B6B', '#6A7FDB', '#9CCC65', '#BA68C8'];
 
+// World map GeoJSON URL - using a more detailed topojson file
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
+const citiesGeoUrl = "https://ktt-assets.yetone.vip/worldcities.csv";
+
+type City = {
+  name: string;
+  lat: number;
+  lng: number;
+  country: string;
+}
+
+async function fetchCitiesData(): Promise<City[]> {
+  const content = await fetch(citiesGeoUrl).then(res => res.text());
+  
+  const res = Papa.parse(content, {
+    header: true,
+    skipEmptyLines: true,
+  });
+  
+  const data = res.data.map((row: any) => {
+    return {
+      name: row.city,
+      lat: parseFloat(row.lat),
+      lng: parseFloat(row.lng),
+      country: row.country,
+    }
+  });
+  
+  return data;
+}
+
 const UrlStats: FC = () => {
   const { shortCode } = useParams<{ shortCode: string }>();
   const { theme } = useTheme();
   const isDarkMode = theme === 'dark';
+  
+  // Define useState hooks before conditional returns
+  const [currentReferrerPage, setCurrentReferrerPage] = useState(1);
+  const [currentLocationPage, setCurrentLocationPage] = useState(1);
   
   const { data: stats, isLoading, isError } = useQuery<UrlStats>(
     ['urlStats', shortCode],
@@ -36,6 +105,14 @@ const UrlStats: FC = () => {
     {
       enabled: !!shortCode,
       refetchInterval: 30000, // Refresh data every 30 seconds
+    }
+  );
+
+  const { data: citiesData } = useQuery<City[]>(
+    ['citiesData'],
+    () => fetchCitiesData(),
+    {
+      enabled: !!shortCode,
     }
   );
 
@@ -69,6 +146,9 @@ const UrlStats: FC = () => {
     name: referrer,
     value: count,
   }));
+  
+  // Constants for pagination
+  const referrersPerPage = 5;
 
   const browserChartData = Object.entries(stats.browsers)
     .sort((a, b) => b[1] - a[1]) // Sort by count in descending order
@@ -90,6 +170,9 @@ const UrlStats: FC = () => {
       name: location,
       value: count,
     }));
+    
+  // Constants for pagination
+  const locationsPerPage = 5;
 
   // Custom renderer for pie chart labels to handle long names
   const renderCustomizedLabel = ({ 
@@ -185,55 +268,121 @@ const UrlStats: FC = () => {
         <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Top Referrers</h2>
           {referrerChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                data={referrerChartData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="value" name="Clicks" fill="#8884d8" />
-              </BarChart>
-            </ResponsiveContainer>
+            <div>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart
+                  data={referrerChartData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="value" name="Clicks" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+
+              <div className="mt-6 overflow-x-auto">
+                <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                  <thead className="bg-gray-100 dark:bg-gray-900">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Referrer</th>
+                      <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Clicks</th>
+                      <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Percentage</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-gray-800 dark:text-gray-200">
+                    {referrerChartData
+                      .slice(
+                        (currentReferrerPage - 1) * referrersPerPage, 
+                        currentReferrerPage * referrersPerPage
+                      )
+                      .map((referrer, index) => {
+                        const percentage = ((referrer.value / stats.total_clicks) * 100).toFixed(1);
+                        return (
+                          <tr key={index} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td className="px-4 py-2">{referrer.name === '' ? '(Direct)' : referrer.name}</td>
+                            <td className="px-4 py-2">{referrer.value}</td>
+                            <td className="px-4 py-2">{percentage}%</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+                
+                {/* Pagination controls */}
+                {referrerChartData.length > referrersPerPage && (
+                  <div className="flex justify-between items-center mt-4 px-4">
+                    <button 
+                      onClick={() => setCurrentReferrerPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentReferrerPage === 1}
+                      className={`px-3 py-1 rounded ${
+                        currentReferrerPage === 1 
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400' 
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
+                      }`}
+                    >
+                      Previous
+                    </button>
+                    
+                    <div className="text-gray-800 dark:text-gray-200">
+                      Page {currentReferrerPage} of {Math.ceil(referrerChartData.length / referrersPerPage)}
+                    </div>
+                    
+                    <button 
+                      onClick={() => setCurrentReferrerPage(prev => 
+                        Math.min(prev + 1, Math.ceil(referrerChartData.length / referrersPerPage))
+                      )}
+                      disabled={currentReferrerPage === Math.ceil(referrerChartData.length / referrersPerPage)}
+                      className={`px-3 py-1 rounded ${
+                        currentReferrerPage === Math.ceil(referrerChartData.length / referrersPerPage) 
+                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400' 
+                          : 'bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
+                      }`}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <p className="text-gray-500 dark:text-gray-400 text-center py-12">No referrer data available yet</p>
           )}
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Browsers</h2>
-        {browserChartData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={browserChartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                nameKey="name"
-                label={renderCustomizedLabel}
-              >
-                {browserChartData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => [`${value} clicks`, 'Count']} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-400 text-center py-12">No browser data available yet</p>
-        )}
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+        <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">
+          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Browsers</h2>
+          {browserChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={browserChartData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="value"
+                  nameKey="name"
+                  label={renderCustomizedLabel}
+                >
+                  {browserChartData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value) => [`${value} clicks`, 'Count']} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-12">No browser data available yet</p>
+          )}
+        </div>
+
         <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">
           <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Operating Systems</h2>
           {osChartData.length > 0 ? (
@@ -262,41 +411,243 @@ const UrlStats: FC = () => {
             <p className="text-gray-500 dark:text-gray-400 text-center py-12">No operating system data available yet</p>
           )}
         </div>
+      </div>
 
-        <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Visitor Locations</h2>
-          {locationChartData.length > 0 ? (
-            <div>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart
-                  data={locationChartData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+      <div className="bg-white dark:bg-gray-700 shadow-md rounded-lg p-6 mt-8">
+        <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Visitor Locations</h2>
+        {locationChartData.length > 0 ? (
+          <div>
+            {/* World Map */}
+            <div className="mb-10 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+              <h3 className="text-lg font-medium mb-4 text-gray-800 dark:text-gray-200">Global Distribution</h3>
+              <div className="h-[400px]">
+                <ComposableMap
+                  projectionConfig={{
+                    scale: 140,
+                    center: [0, 0],
+                    rotation: [0, 0, 0],
+                  }}
+                  width={800}
+                  height={400}
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                  }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="value" name="Clicks" fill="#A259FF" />
-                </BarChart>
-              </ResponsiveContainer>
-              
-              <div className="mt-6 overflow-x-auto">
-                <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-                  <thead className="bg-gray-100 dark:bg-gray-900">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Country</th>
-                      <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Clicks</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-gray-800 dark:text-gray-200">
+                  <ZoomableGroup>
+                    <Geographies geography={geoUrl}>
+                      {({ geographies }) => 
+                        geographies.map((geo) => {
+                          // Try to match the geo name or code with our data
+                          const countryName = geo.properties.name;
+                          
+                          // Find all locations that match this country
+                          const matchingLocations = locationChartData.filter(
+                            location => {
+                              const countryName_ = getLocationCountryName(location.name);
+                              return countryName_ && countryName_.toUpperCase() === countryName.toUpperCase();
+                            }
+                          );
+                          
+                          // Sum the total clicks for this country
+                          const totalClicks = matchingLocations.reduce((sum, loc) => sum + loc.value, 0);
+                          
+                          // Calculate color intensity based on click count
+                          const maxValue = Math.max(...locationChartData.map(d => d.value));
+                          const colorScale = scaleLinear()
+                            .domain([0, maxValue])
+                            .range([isDarkMode ? "#1F2937" : "#CFD8DC", "#4338CA"]);
+                            
+                          const fillColor = totalClicks > 0
+                            ? colorScale(totalClicks) 
+                            : isDarkMode ? "#2D3748" : "#F5F5F5";
+                            
+                          return (
+                            <Geography
+                              key={geo.rsmKey}
+                              geography={geo}
+                              fill={fillColor}
+                              stroke="#D6D6DA"
+                              style={{
+                                hover: {
+                                  fill: "#A5D6A7",
+                                  stroke: "#FFF",
+                                  strokeWidth: 0.75,
+                                  outline: "none",
+                                },
+                              }}
+                            />
+                          );
+                        })
+                      }
+                    </Geographies>
+                    {/* Add markers for city locations with visitor data */}
                     {locationChartData.map((location, index) => {
-                      // Extract country code (assuming it's a 2-letter ISO code)
-                      const countryName = location.name.length === 2 ? 
-                        location.name.toUpperCase() : 
-                        location.name.split(',').pop()?.trim().toUpperCase();
+                      // Parse the location to get city and country
+                      const { city, country } = parseLocation(location.name);
+                      let coordinates: [number, number] | null | undefined = null;
 
-                      const countryCode = lookup.byCountry(countryName || "")?.iso2;
+                      if (city && country) {
+                        const cityData = citiesData?.find(c => c.country === country && c.name === city);
+                        coordinates = cityData ? [cityData.lng, cityData.lat] : null;
+                      }
+                      
+                      // Only render markers if we have coordinates
+                      if (coordinates) {
+                        // Scale the marker size based on click count
+                        const maxValue = Math.max(...locationChartData.map(d => d.value));
+                        const size = 4 + (location.value / maxValue) * 6; // Size between 4 and 10
+
+                        return (
+                          <Marker key={`marker-${index}`} coordinates={coordinates}>
+                            {/* 使用SVG marker代替简单的圆圈 */}
+                            <g>
+                              {/* 底部阴影效果 */}
+                              <circle
+                                cx={0}
+                                cy={0}
+                                r={size}
+                                fill="rgba(0, 0, 0, 0.3)"
+                                opacity={0.6}
+                                transform={`translate(1, 1)`}
+                              />
+                              {/* 主要标记 */}
+                              <circle
+                                cx={0}
+                                cy={0}
+                                r={size}
+                                fill="#FF5533"
+                                stroke="#FFFFFF"
+                                strokeWidth={1.5}
+                                opacity={0.9}
+                              />
+                              {/* 添加内圈 */}
+                              <circle
+                                cx={0}
+                                cy={0}
+                                r={size * 0.6}
+                                fill="#FFFFFF"
+                                opacity={0.3}
+                              />
+                              {/* 添加点击数量 */}
+                              <text
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                style={{
+                                  fontFamily: "system-ui",
+                                  fontSize: size > 8 ? "8px" : "6px",
+                                  fill: "#FFFFFF",
+                                  fontWeight: "bold"
+                                }}
+                              >
+                                {location.value}
+                              </text>
+                            </g>
+                            
+                            {/* 城市名标签 - 添加背景提高可读性 */}
+                            {city && (
+                              <>
+                                {/* 标签背景 */}
+                                <rect
+                                  x={-35}
+                                  y={-size - 16}
+                                  width={70}
+                                  height={14}
+                                  rx={2}
+                                  fill={isDarkMode ? "rgba(0, 0, 0, 0.7)" : "rgba(255, 255, 255, 0.7)"}
+                                  stroke={isDarkMode ? "#555555" : "#DDDDDD"}
+                                  strokeWidth={0.5}
+                                />
+                                {/* 标签文字 */}
+                                <text
+                                  textAnchor="middle"
+                                  y={-size - 8} // Position above the circle
+                                  style={{
+                                    fontFamily: "system-ui",
+                                    fontSize: "8px",
+                                    fill: isDarkMode ? "#FFFFFF" : "#333333",
+                                    fontWeight: "bold"
+                                  }}
+                                >
+                                  {city}
+                                </text>
+                              </>
+                            )}
+                          </Marker>
+                        );
+                      }
+                      return null;
+                    })}
+                  </ZoomableGroup>
+                </ComposableMap>
+              </div>
+              <div className="flex justify-center items-center mt-4">
+                <div className="w-full max-w-md flex items-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">Low</span>
+                  <div className="mx-2 h-2 flex-1 bg-gradient-to-r from-[#CFD8DC] to-[#4338CA] dark:from-[#1F2937] rounded"></div>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">High</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bar Chart */}
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={locationChartData}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" name="Clicks">
+                  {locationChartData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            
+            <div className="mt-6 overflow-x-auto">
+              <table className="min-w-full bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
+                <thead className="bg-gray-100 dark:bg-gray-900">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Country</th>
+                    <th className="px-4 py-2 text-left text-gray-800 dark:text-gray-200">Clicks</th>
+                  </tr>
+                </thead>
+                <tbody className="text-gray-800 dark:text-gray-200">
+                  {locationChartData
+                    .slice(
+                      (currentLocationPage - 1) * locationsPerPage, 
+                      currentLocationPage * locationsPerPage
+                    )
+                    .map((location, index) => {
+                      // Parse location to get city and country
+                      const { city, country } = parseLocation(location.name);
+                      
+                      // Get country code
+                      let countryCode: string | undefined;
+                      let countryName = country;
+                      
+                      if (country) {
+                        if (country.length === 2) {
+                          // If it's a 2-letter ISO code
+                          countryCode = country;
+                          countryName = lookup.byIso(country)?.country || country;
+                        } else {
+                          // Try to look up by country name
+                          try {
+                            countryCode = lookup.byCountry(country)?.iso2;
+                          } catch (e) {
+                            // Country not found
+                          }
+                        }
+                      }
+                      
+                      // Format display text
+                      const displayLocation = city ? `${city}, ${countryName}` : location.name;
                       
                       return (
                         <tr key={index} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
@@ -309,23 +660,57 @@ const UrlStats: FC = () => {
                                   width: '1.5em',
                                   height: '1.5em',
                                 }}
-                                title={location.name}
+                                title={countryName || ""}
                               />
                             )}
-                            {location.name}
+                            {displayLocation}
                           </td>
                           <td className="px-4 py-2">{location.value}</td>
                         </tr>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                </tbody>
+              </table>
+              
+              {/* Pagination controls */}
+              {locationChartData.length > locationsPerPage && (
+                <div className="flex justify-between items-center mt-4 px-4">
+                  <button 
+                    onClick={() => setCurrentLocationPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentLocationPage === 1}
+                    className={`px-3 py-1 rounded ${
+                      currentLocationPage === 1 
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400' 
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
+                    }`}
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="text-gray-800 dark:text-gray-200">
+                    Page {currentLocationPage} of {Math.ceil(locationChartData.length / locationsPerPage)}
+                  </div>
+                  
+                  <button 
+                    onClick={() => setCurrentLocationPage(prev => 
+                      Math.min(prev + 1, Math.ceil(locationChartData.length / locationsPerPage))
+                    )}
+                    disabled={currentLocationPage === Math.ceil(locationChartData.length / locationsPerPage)}
+                    className={`px-3 py-1 rounded ${
+                      currentLocationPage === Math.ceil(locationChartData.length / locationsPerPage) 
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-400' 
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
-          ) : (
-            <p className="text-gray-500 dark:text-gray-400 text-center py-12">No location data available yet</p>
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="text-gray-500 dark:text-gray-400 text-center py-12">No location data available yet</p>
+        )}
       </div>
     </div>
   );
